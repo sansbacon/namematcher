@@ -90,6 +90,28 @@ class Match_test(unittest.TestCase):
         d = player_namepos_dict(l, full_name_key='full_name', pos_key='pos')
         self.assertIsInstance(d, defaultdict)
 
+    def test_player_match(self):
+
+        '''
+        Tries direct match, then fuzzy match, then interactive
+
+        Args:
+            to_match(str):
+            match_from(list): of str
+            thresh(int): threshold for quality of match (1-100), default 90
+            timeout(int): how long to wait for interactive prompt, default 2
+
+        Returns:
+            str
+
+        '''
+        pl = self.player
+        match = player_match(pl, self.players, thresh=85, timeout=1)
+        self.assertEqual(match, pl)
+        pl = 'John Thomas'
+        match = player_match(pl, self.players, thresh=70, timeout=1)
+        self.assertNotEqual(match, pl)
+
 
 if __name__=='__main__':
     unittest.main()

@@ -43,6 +43,33 @@ def read_input(prompt, timeout, default=None, timeoutmsg = None):
         return default
 
 
+def player_match(to_match, match_from, thresh=90, timeout=2):
+    '''
+    Tries direct match, then fuzzy match, then interactive
+
+    Args:
+        to_match(str):
+        match_from(list): of str
+        thresh(int): threshold for quality of match (1-100), default 90
+        timeout(int): how long to wait for interactive prompt, default 2
+
+    Returns:
+        str
+
+    '''
+    # try direct match first
+    # if not, go fuzzy and then interactive
+    matches = [nm for nm in match_from if nm == to_match]
+    if matches and len(matches) == 1:
+        return matches[0]
+
+    matches, conf = player_match_fuzzy(to_match, match_from)
+    if conf >= thresh:
+        return matches
+
+    return player_match_interactive(to_match, match_from, timeout=timeout)
+
+
 def player_match_fuzzy(to_match, match_from):
     '''
     Matches player with fuzzy match
