@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# tests/test_player_mflxref.py
+# test_player_mflxref.py
 
 import logging
 import random
@@ -111,6 +111,24 @@ class Match_test(unittest.TestCase):
         pl = 'John Thomas'
         match = player_match(pl, self.players, thresh=70, timeout=1)
         self.assertNotEqual(match, pl)
+
+    def test_first_last(self):
+        fl = first_last('Thomas, Joe')
+        self.assertEqual(fl, 'Joe Thomas')
+        fl = first_last('Odell Beckham Jr.')
+        self.assertEqual(fl, 'Odell Beckham')
+
+    def test_last_first(self):
+        fl = last_first('Joe Thomas')
+        self.assertEqual(fl, 'Thomas, Joe')
+        fl = last_first('Odell Beckham Jr.')
+        self.assertEqual(fl, 'Beckham, Odell')
+
+    def test_first_last_pair(self):
+        fl = first_last_pair('Thomas, Joe')
+        self.assertEqual(fl, ('Joe', 'Thomas'))
+        fl = first_last_pair('Odell Beckham Jr.')
+        self.assertEqual(fl, ('Odell', 'Beckham'))
 
 
 if __name__=='__main__':

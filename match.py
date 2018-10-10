@@ -1,6 +1,7 @@
 '''
 match.py
 Common cross-reference functions
+
 '''
 
 from collections import defaultdict
@@ -9,38 +10,55 @@ import signal
 import time
 
 from fuzzywuzzy import process
+from nameparser import HumanName
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
-# TODO: add function for multiple-try matching
-# direct match, fuzzy match, interactive match all-in-one
-
-
-def read_input(prompt, timeout, default=None, timeoutmsg = None):
+def first_last(name):
     '''
-    Reads input with timeout
+    Returns name in First Last format
+    
+    Args:
+        name(str)
+        
+    Returns:
+        str
+
+    '''
+    hn = HumanName(name)
+    return '{0} {1}'.format(hn.first, hn.last)
+
+
+def first_last_pair(name):
+    '''
+    Returns name in First Last pair
 
     Args:
-        prompt(str): the prompt for user input
-        timeout(int): seconds to wait before timing out
-        timeoutmsg(str): optional message to print if timed out
+        name(str)
+        
+    Returns:
+        tuple: of str
 
     '''
-    # based on https://stackoverflow.com/questions/44037060/how-to-set-a-timeout-for-input
-    def timeout_error(*_):
-        raise TimeoutError
-    signal.signal(signal.SIGALRM, timeout_error)
-    signal.alarm(timeout)
-    try:
-        answer = input(prompt)
-        signal.alarm(0)
-        return answer
-    except TimeoutError:
-        if timeoutmsg:
-            print(timeoutmsg)
-        signal.signal(signal.SIGALRM, signal.SIG_IGN)
-        return default
+    hn = HumanName(name)
+    return (hn.first, hn.last)
+
+
+def last_first(name):
+    '''
+    Returns name in Last, First format
+
+    Args:
+        name(str)
+        
+    Returns:
+        str
+
+    '''
+
+    hn = HumanName(name)
+    return '{1}, {0}'.format(hn.first, hn.last) 
 
 
 def player_match(to_match, match_from, thresh=90, timeout=2):
@@ -174,6 +192,31 @@ def player_namepos_dict(players, pos_key, full_name_key=None,
         msg = 'must specify full_name_key or first_name + last_name key'
         raise ValueError(msg)
     return d
+
+def read_input(prompt, timeout, default=None, timeoutmsg = None):
+    '''
+    Reads input with timeout
+
+    Args:
+        prompt(str): the prompt for user input
+        timeout(int): seconds to wait before timing out
+        timeoutmsg(str): optional message to print if timed out
+
+    '''
+    # based on https://stackoverflow.com/questions/44037060/how-to-set-a-timeout-for-input
+    def timeout_error(*_):
+        raise TimeoutError
+    signal.signal(signal.SIGALRM, timeout_error)
+    signal.alarm(timeout)
+    try:
+        answer = input(prompt)
+        signal.alarm(0)
+        return answer
+    except TimeoutError:
+        if timeoutmsg:
+            print(timeoutmsg)
+        signal.signal(signal.SIGALRM, signal.SIG_IGN)
+        return default
 
 
 if __name__ == '__main__':
