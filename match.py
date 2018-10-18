@@ -10,67 +10,21 @@ import signal
 import time
 
 from fuzzywuzzy import process
-from nameparser import HumanName
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
-def first_last(name):
+def player_match(to_match, match_from, thresh=90, timeout=2, interactive=False):
     '''
-    Returns name in First Last format
-    
-    Args:
-        name(str)
-        
-    Returns:
-        str
-
-    '''
-    hn = HumanName(name)
-    return '{0} {1}'.format(hn.first, hn.last)
-
-
-def first_last_pair(name):
-    '''
-    Returns name in First Last pair
-
-    Args:
-        name(str)
-        
-    Returns:
-        tuple: of str
-
-    '''
-    hn = HumanName(name)
-    return (hn.first, hn.last)
-
-
-def last_first(name):
-    '''
-    Returns name in Last, First format
-
-    Args:
-        name(str)
-        
-    Returns:
-        str
-
-    '''
-
-    hn = HumanName(name)
-    return '{1}, {0}'.format(hn.first, hn.last) 
-
-
-def player_match(to_match, match_from, thresh=90, timeout=2):
-    '''
-    Tries direct match, then fuzzy match, then interactive
+    Tries direct match, then fuzzy match, then interactive (optional)
 
     Args:
         to_match(str):
         match_from(list): of str
         thresh(int): threshold for quality of match (1-100), default 90
         timeout(int): how long to wait for interactive prompt, default 2
-
+        interactive(bool):
+        
     Returns:
         str
 
@@ -85,7 +39,10 @@ def player_match(to_match, match_from, thresh=90, timeout=2):
     if conf >= thresh:
         return matches
 
-    return player_match_interactive(to_match, match_from, timeout=timeout)
+    if interactive:
+        return player_match_interactive(to_match, match_from, timeout=timeout)
+    else:
+        return None
 
 
 def player_match_fuzzy(to_match, match_from):

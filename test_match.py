@@ -23,20 +23,6 @@ class Match_test(unittest.TestCase):
     def player(self):
         return random.choice(self.players)
 
-    def rand_dictitem(self, d):
-        '''
-        Gets random item from dict
-
-        Args:
-            d(dict):
-
-        Returns:
-            tuple: dict key and value
-
-        '''
-        k = random.choice(list(d.keys()))
-        return (k, d[k])
-
     def test_read_input(self):
         '''
         prompt, timeout, timeoutmsg
@@ -111,24 +97,6 @@ class Match_test(unittest.TestCase):
         pl = 'John Thomas'
         match = player_match(pl, self.players, thresh=70, timeout=1)
         self.assertNotEqual(match, pl)
-
-    def test_first_last(self):
-        fl = first_last('Thomas, Joe')
-        self.assertEqual(fl, 'Joe Thomas')
-        fl = first_last('Odell Beckham Jr.')
-        self.assertEqual(fl, 'Odell Beckham')
-
-    def test_last_first(self):
-        fl = last_first('Joe Thomas')
-        self.assertEqual(fl, 'Thomas, Joe')
-        fl = last_first('Odell Beckham Jr.')
-        self.assertEqual(fl, 'Beckham, Odell')
-
-    def test_first_last_pair(self):
-        fl = first_last_pair('Thomas, Joe')
-        self.assertEqual(fl, ('Joe', 'Thomas'))
-        fl = first_last_pair('Odell Beckham Jr.')
-        self.assertEqual(fl, ('Odell', 'Beckham'))
 
 
 if __name__=='__main__':
