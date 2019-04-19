@@ -1,8 +1,10 @@
 '''
+
 xref.py
 class for matching players across sites
 
 '''
+
 from collections import defaultdict
 import logging
 
@@ -22,7 +24,7 @@ class Site():
         Args:
             db(NFLPostgres): instance
             **kwargs
-            
+
         Returns:
             Site
 
@@ -44,7 +46,7 @@ class Site():
         if kwargs.get('player_query'):
             self.player_query = kwargs['player_query']
         else:
-            self.player_query = {}
+            self.player_query = "SELECT {} FROM base.player_xref"
         if kwargs.get('playernames'):
             self.playernames = kwargs['playernames']
         else:

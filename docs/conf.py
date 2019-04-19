@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # playermatcher documentation build configuration file, created by
-# sphinx-quickstart on Thu Apr 18 21:02:15 2019.
+# sphinx-quickstart on Thu Apr 18 21:56:49 2019.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.

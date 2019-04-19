@@ -7,14 +7,17 @@ Common cross-reference functions
 from collections import defaultdict
 import logging
 import signal
-import time
 
 from fuzzywuzzy import process
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
-def player_match(to_match, match_from, thresh=90, timeout=2, interactive=False):
+def player_match(to_match,
+                 match_from,
+                 thresh=90,
+                 timeout=2,
+                 interactive=False):
     '''
     Tries direct match, then fuzzy match, then interactive (optional)
 
@@ -24,7 +27,7 @@ def player_match(to_match, match_from, thresh=90, timeout=2, interactive=False):
         thresh(int): threshold for quality of match (1-100), default 90
         timeout(int): how long to wait for interactive prompt, default 2
         interactive(bool):
-        
+
     Returns:
         str
 
@@ -35,17 +38,17 @@ def player_match(to_match, match_from, thresh=90, timeout=2, interactive=False):
     if matches and len(matches) == 1:
         return matches[0]
 
-    matches, conf = player_match_fuzzy(to_match, match_from)
+    matches, conf = match_fuzzy(to_match, match_from)
     if conf >= thresh:
         return matches
 
     if interactive:
-        return player_match_interactive(to_match, match_from, timeout=timeout)
+        return match_interactive(to_match, match_from, timeout=timeout)
     else:
         return None
 
 
-def player_match_fuzzy(to_match, match_from):
+def match_fuzzy(to_match, match_from):
     '''
     Matches player with fuzzy match
 
@@ -64,8 +67,11 @@ def player_match_fuzzy(to_match, match_from):
     return process.extractOne(to_match, match_from)
 
 
-def player_match_interactive(to_match, match_from, default=None,
-                             choices=1, timeout=5):
+def match_interactive(to_match,
+                      match_from,
+                      default=None,
+                      choices=1,
+                      timeout=5):
     '''
     Matches player with fuzzy match, interactive confirmation
 
@@ -75,7 +81,7 @@ def player_match_interactive(to_match, match_from, default=None,
         default: default value is None
         choices(int): number of matches to try
         timeout(int): seconds to wait before providing default value
-        
+
     Returns:
         str
 
@@ -90,11 +96,13 @@ def player_match_interactive(to_match, match_from, default=None,
     return (default, 1)
 
 
-def player_name_dict(players, full_name_key=None,
-                     first_name_key=None, last_name_key=None):
+def name_dict(players,
+              full_name_key=None,
+              first_name_key=None,
+              last_name_key=None):
     '''
     Creates a defaultdict of player name: player
-    
+
     Args:
         players(list): of dict
         full_name_key(str): default None
@@ -103,7 +111,7 @@ def player_name_dict(players, full_name_key=None,
 
     Returns:
         defaultdict(list)
-        
+
     '''
     d = defaultdict(list)
     if full_name_key:
@@ -112,18 +120,21 @@ def player_name_dict(players, full_name_key=None,
     elif first_name_key and last_name_key:
         for p in players:
             k = '{} {}'.format(p[first_name_key], p[last_name_key])
-            d[k].append(p) 
+            d[k].append(p)
     else:
         msg = 'must specify full_name_key or first_name + last_name key'
         raise ValueError(msg)
     return d
 
 
-def player_namepos_dict(players, pos_key, full_name_key=None,
-                     first_name_key=None, last_name_key=None):
+def namepos_dict(players,
+                 pos_key,
+                 full_name_key=None,
+                 first_name_key=None,
+                 last_name_key=None):
     '''
     Creates a defaultdict of player name_position: player
-    
+
     Args:
         players(list): of dict
         pos_key(str): 'position', 'pos', etc.
@@ -133,16 +144,16 @@ def player_namepos_dict(players, pos_key, full_name_key=None,
 
     Returns:
         defaultdict(list)
-        
+
     '''
     d = defaultdict(list)
     if full_name_key:
         for p in players:
-            k = '{}_{}'.format(p[full_name_key], p[pos_key])           
+            k = '{}_{}'.format(p[full_name_key], p[pos_key])
             d[k].append(p)
     elif first_name_key and last_name_key:
         for p in players:
-            k = '{} {}_{}'.format(p[first_name_key], 
+            k = '{} {}_{}'.format(p[first_name_key],
                                   p[last_name_key], p[pos_key])
             d[k].append(p)
     else:
@@ -150,7 +161,10 @@ def player_namepos_dict(players, pos_key, full_name_key=None,
         raise ValueError(msg)
     return d
 
-def read_input(prompt, timeout, default=None, timeoutmsg = None):
+def read_input(prompt,
+               timeout,
+               default=None,
+               timeoutmsg = None):
     '''
     Reads input with timeout
 
@@ -160,7 +174,8 @@ def read_input(prompt, timeout, default=None, timeoutmsg = None):
         timeoutmsg(str): optional message to print if timed out
 
     '''
-    # based on https://stackoverflow.com/questions/44037060/how-to-set-a-timeout-for-input
+    # based on https://stackoverflow.com/questions/44037060/
+    # how-to-set-a-timeout-for-input
     def timeout_error(*_):
         raise TimeoutError
     signal.signal(signal.SIGALRM, timeout_error)
