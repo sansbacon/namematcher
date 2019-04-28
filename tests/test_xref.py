@@ -100,6 +100,7 @@ class Site_test(unittest.TestCase):
         playersd = self.x.get_site_playersd()
         self.assertGreater(len(list(playersd.keys())), 50)
 
+    @unittest.skip
     def test_match_players(self):
         """
 
