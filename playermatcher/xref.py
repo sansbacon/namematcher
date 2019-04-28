@@ -7,9 +7,13 @@ class for matching players across sites
 
 from collections import defaultdict
 import logging
+import typing
+
+import attr
 
 from .match import player_match
 from .name import first_last
+from nflmisc import nflpg
 
 
 def add_xref(xref_dict, base, session):
@@ -36,77 +40,54 @@ def add_xref(xref_dict, base, session):
       )
     )
 
-
-class Site():
+@attr.s(kw_only=True)
+class Site:
     '''
     Base class for matching players
 
     '''
+    db = attr.ib(type=nflpg.NFLPostgres,
+                 validator=attr.validators.instance_of(nflpg.NFLPostgres))
+    based = attr.ib(type=dict,
+                    factory=dict,
+                    validator=attr.validators.instance_of(dict))
+    base_players = attr.ib(type=typing.List[dict],
+                           factory=list,
+                           validator=attr.validators.instance_of(list))
+    base_playernames = attr.ib(type=typing.List[str],
+                               factory=list,
+                               validator=attr.validators.instance_of(list))
+    mfld = attr.ib(type=dict,
+                   factory=dict,
+                   validator=attr.validators.instance_of(dict))
+    mfl_players = attr.ib(type=typing.List[dict],
+                           factory=list,
+                           validator=attr.validators.instance_of(list))
+    mfl_playernames = attr.ib(type=typing.List[str],
+                               factory=list,
+                               validator=attr.validators.instance_of(list))
+    player_query = attr.ib(type=str,
+                           default="SELECT {} FROM base.player")
+    source_name = attr.ib(type=str, default='')
+    sourced = attr.ib(type=dict,
+                   factory=dict,
+                   validator=attr.validators.instance_of(dict))
+    source_players = attr.ib(type=typing.List[dict],
+                           factory=list,
+                           validator=attr.validators.instance_of(list))
+    source_playernames = attr.ib(type=typing.List[str],
+                               factory=list,
+                               validator=attr.validators.instance_of(list))
+    xref_query = attr.ib(type=str,
+                         default=("SELECT {} FROM base.player_xref "
+                                  "WHERE SOURCE = '{}'"))
 
-    def __init__(self, db, **kwargs):
-        '''
-
-        Args:
-            db(NFLPostgres): instance
-            **kwargs
-
-        Returns:
-            Site
-
-        '''
+    def __attrs_post_init__(self):
         logging.getLogger(__name__).addHandler(logging.NullHandler())
-        self.db = db
-        self.source_name = ''
-
-        if kwargs.get('based'):
-            self.based = kwargs['based']
-        else:
-            self.based = {}
-
-        if kwargs.get('base_players'):
-            self.base_players = kwargs['base_players']
-        else:
-            self.base_players = {}
-
-        if kwargs.get('base_playernames'):
-            self.base_playernames = kwargs['base_playernames']
-        else:
-            self.base_playernames = {}
-
-        if kwargs.get('mfld'):
-            self.mfld = kwargs['mfld']
-        else:
-            self.mfld = {}
-
-        if kwargs.get('mfl_players'):
-            self.mfl_players = kwargs['mfl_players']
-        else:
-            self.mfl_players = {}
-
-        if kwargs.get('player_query'):
-            self.player_query = kwargs['player_query']
-        else:
-            self.player_query = ("SELECT {} FROM base.player_xref "
-                                "WHERE SOURCE = '{}'")
-
-        if kwargs.get('source_playernames'):
-            self.source_playernames = kwargs['source_playernames']
-        else:
-            self.source_playernames = {}
-
-        if kwargs.get('source_players'):
-            self.source_players = kwargs['source_players']
-        else:
-            self.source_players = {}
-
-        if kwargs.get('source_playersd'):
-            self.source_playersd = kwargs['source_playersd']
-        else:
-            self.source_playersd = {}
 
     def get_based(self,
-                  first='base',
-                  name_key='source_player_id'):
+                  first='name',
+                  name_key='full_name'):
         '''
         Dict of player_id: source_player_id or vice versa
 
@@ -114,13 +95,13 @@ class Site():
 	        dict
 
         '''
-        fields = f'player_id as m, {name_key} as s'
-        q = self.player_query.format(fields, self.source_name)
+        fields = f'player_id as id, {name_key} as name'
+        q = self.player_query.format(fields)
         players = self.db.select_dict(q)
-        if first == 'base':
-            self.based = {p['m']: p['s'] for p in players}
+        if first == 'name':
+            self.based = {p['name']: p['id'] for p in players}
         else:
-            self.based = {p['s']: p['m'] for p in players}
+            self.based = {p['id']: p['name'] for p in players}
         return self.based
 
     def get_base_players(self):
@@ -148,28 +129,38 @@ class Site():
         return self.base_playernames
 
     def get_mfld(self,
-                 first='mfl',
-                 name_key='source_player_id'):
+                  first='name',
+                  name_key='full_name'):
         '''
-        Dict of mfl_player_id: source_player_id or vice versa
-
-        Args:
-            first(str):
-            name_key(str):
+        Dict of player_id: source_player_id or vice versa
 
         Returns:
             dict
 
         '''
-        if not self.mfld:
-            fields = f'mfl_player_id as m, {name_key} as s'
-            q = self.player_query.format(fields, self.source_name)
-            players = self.db.select_dict(q)
-            if first == 'mfl':
-                self.mfld = {p['m']: p['s'] for p in players}
-            else:
-                self.mfld = {p['s']: p['m'] for p in players}
+        q = """SELECT mfl_player_id as id, full_name as name
+               FROM base.player 
+               WHERE mfl_player_id IS NOT NULL"""
+        players = self.db.select_dict(q)
+        if first == 'name':
+            self.mfld = {p['name']: p['id'] for p in players}
+        else:
+            self.mfld = {p['id']: p['name'] for p in players}
         return self.mfld
+
+    def get_mfl_playernames(self):
+        '''
+        Interface
+
+        Returns:
+            list: of dict
+
+        '''
+        if not self.mfl_playernames:
+            q = """SELECT full_name FROM base.player 
+                   WHERE mfl_player_id IS NOT NULL"""
+            self.mfl_playernames = self.db.select_list(q)
+        return self.mfl_playernames
 
     def get_mfl_players(self):
         '''
@@ -180,55 +171,41 @@ class Site():
 
         '''
         if not self.mfl_players:
-            q = 'SELECT * FROM base.player WHERE mfl_player_id IS NOT NULL'
+            q = """SELECT * FROM base.player 
+                   WHERE mfl_player_id IS NOT NULL"""
             self.mfl_players = self.db.select_dict(q)
         return self.mfl_players
 
-    def get_mfl_players(self):
+    def get_sourced(self, first='name'):
         '''
-        Interface
-
-        Returns:
-            list: of dict
-
-        '''
-        if not self.mfl_playernames:
-            q = 'SELECT full_name FROM base.player WHERE mfl_player_id IS NOT NULL'
-            self.mfl_playernames = self.db.select_list(q)
-        return self.mfl_playernames
-
-    def get_source_players(self):
-        '''
-        Interface
-
-        Returns:
-            list: of dict
-
-        '''
-        if not self.source_players:
-            self.source_players = self.db.select_dict(self.player_query.format('*', self.source_name))
-        return self.source_players
-
-    def get_source_playernames(self, name_key='source_player_name'):
-        '''
-        List of site playernames.
+        Dict of name: id or vice versa
 
         Args:
-            name_key(str): default 'source_player_name'
+            first(str): 'name' or 'id'
 
         Returns:
-            list
+            dict
 
         '''
-        if not self.source_playernames:
-            q = self.player_query.format(name_key, self.source_name)
-            self.source_playernames = self.db.select_list(q)
-        return self.source_playernames
+        q = """SELECT source_player_id as id, 
+               source_player_name as name
+               FROM base.player_xref 
+               WHERE source ='{}'"""
+        players = self.db.select_dict(q.format(self.source_name))
+        if first == 'name':
+            self.sourced = {p['name']: p['id'] for p in players}
+        elif first == 'id':
+            self.sourced = {p['id']: p['name'] for p in players}
+        else:
+            raise ValueError('invalid value for first %s' % first)
+        return self.sourced
 
-    def get_source_playersd(self,
-                          dict_key='name',
-                          name_key='source_player_name',
-                          pos_key='source_player_position'):
+
+    """
+    def get_sourced(self,
+                    dict_key='name',
+                    name_key='source_player_name',
+                    pos_key='source_player_position'):
         '''
         Defaultdict of site players. Key is dict_key, value is list.
 
@@ -254,6 +231,35 @@ class Site():
             raise ValueError('invalid key name: %s', dict_key)
         self.source_playersd = playersd
         return self.source_playersd
+    """
+
+    def get_source_players(self):
+        '''
+        Interface
+
+        Returns:
+            list: of dict
+
+        '''
+        if not self.source_players:
+            self.source_players = self.db.select_dict(self.xref_query.format('*', self.source_name))
+        return self.source_players
+
+    def get_source_playernames(self, name_key='source_player_name'):
+        '''
+        List of site playernames.
+
+        Args:
+            name_key(str): default 'source_player_name'
+
+        Returns:
+            list
+
+        '''
+        if not self.source_playernames:
+            q = self.xref_query.format(name_key, self.source_name)
+            self.source_playernames = self.db.select_list(q)
+        return self.source_playernames
 
     def match_mfl(self, mfl_players, id_key, name_key, interactive=False):
         '''

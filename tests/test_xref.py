@@ -30,7 +30,7 @@ class Site_test(unittest.TestCase):
 
         '''
         self.db = getdb('nfl')
-        self.x = Site(self.db)
+        self.x = Site(db=self.db)
         stream_handler = logging.StreamHandler(sys.stdout)
         logger.addHandler(stream_handler)
 
@@ -40,17 +40,29 @@ class Site_test(unittest.TestCase):
         Returns:
 
         '''
-        self.x.source_name = 'pff'
-        players = self.x.get_based()
+        players = self.x.get_based(first='name')
         player = rand_dictitem(players)
-        logging.info(player)
         self.assertIsInstance(players, dict)
         self.assertGreater(len(list(players.keys())), 50)
-        logging.getLogger().info(player)
+        self.assertIsInstance(player[0], str)
+        self.assertIsInstance(player[1], int)
+        players = self.x.get_based(first='id')
+        player = rand_dictitem(players)
+        self.assertIsInstance(player[0], int)
+        self.assertIsInstance(player[1], str)
 
-        self.x.source_name = 'xxx'
-        players = self.x.get_based()
-        self.assertIsNone(players)
+    def test_get_base_playernames(self):
+        '''
+
+        Returns:
+
+        '''
+        players = self.x.get_base_playernames()
+        player = random.choice(players)
+        logging.info(player)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len(players), 50)
+        self.assertIsInstance(player, str)
 
     def test_get_base_players(self):
         '''
@@ -60,9 +72,40 @@ class Site_test(unittest.TestCase):
         '''
         players = self.x.get_base_players()
         player = random.choice(players)
+        logging.info(player)
         self.assertIsInstance(players, list)
         self.assertGreater(len(players), 50)
         self.assertIn('player_id', player.keys())
+
+    def test_get_mfld(self):
+        '''
+
+        Returns:
+
+        '''
+        players = self.x.get_mfld(first='name')
+        player = rand_dictitem(players)
+        self.assertIsInstance(players, dict)
+        self.assertGreater(len(list(players.keys())), 50)
+        self.assertIsInstance(player[0], str)
+        self.assertIsInstance(player[1], int)
+        players = self.x.get_mfld(first='id')
+        player = rand_dictitem(players)
+        self.assertIsInstance(player[0], int)
+        self.assertIsInstance(player[1], str)
+
+    def test_get_mfl_playernames(self):
+        '''
+
+        Returns:
+
+        '''
+        players = self.x.get_mfl_playernames()
+        player = random.choice(players)
+        logging.info(player)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len(players), 50)
+        self.assertIsInstance(player, str)
 
     def test_get_mfl_players(self):
         '''
@@ -72,60 +115,60 @@ class Site_test(unittest.TestCase):
         '''
         players = self.x.get_mfl_players()
         player = random.choice(players)
-        self.assertGreater(len(players), 50)
-        self.assertIn('mfl_player_id', player.keys())
-
-    def test_get_mfld(self):
-        '''
-
-        Returns:
-
-        '''
-        self.x.player_query = "SELECT {} FROM base.vw_pff_mfl_xref"
-        mfld = self.x.get_mfld()
-        self.assertIsInstance(mfld, dict)
-        self.assertGreater(len(list(mfld.keys())), 50)
-        item = rand_dictitem(mfld)
-        self.assertIsInstance(item[0], int)
-        self.assertIsInstance(item[1], str)
-
-    def test_get_site_players(self):
-        """
-
-        Returns:
-
-        """
-        self.x.player_query = "SELECT {} FROM base.vw_pff_mfl_xref"
-        players = self.x.get_site_players()
-        player = random.choice(players)
+        logging.info(player)
+        self.assertIsInstance(players, list)
+        self.assertIsInstance(player, dict)
         self.assertGreater(len(players), 50)
         self.assertIn('player_id', player.keys())
 
-    def test_get_site_playersd(self):
-        """
+    def test_get_sourced(self):
+        '''
 
         Returns:
 
-        """
-        self.x.player_query = "SELECT {} FROM base.vw_pff_mfl_xref"
-        playersd = self.x.get_site_playersd()
-        self.assertGreater(len(list(playersd.keys())), 50)
+        '''
+        self.x.source_name = 'pff'
+        players = self.x.get_sourced(first='name')
+        player = rand_dictitem(players)
+        self.assertIsInstance(player[0], str)
+        self.assertIsInstance(player[1], str)
 
-    @unittest.skip
-    def test_match_players(self):
-        """
+        players = self.x.get_sourced(first='id')
+        player = rand_dictitem(players)
+        self.assertIsInstance(player[0], str)
+        self.assertIsInstance(player[1], str)
+
+        self.x.source_name = 'xxx'
+        players = self.x.get_sourced(first='name')
+        self.assertFalse(bool(players))
+
+    def test_get_source_playernames(self):
+        '''
 
         Returns:
 
-        """
-        players_to_match = self.db.select_dict("""SELECT *
-                                                  FROM base.player_xref
-                                                  WHERE source = 'pff'
-                                                  ORDER BY RANDOM()
-                                                  LIMIT 2""")
-        self.assertGreater(len(players_to_match), 0)
-        players = self.x.match_players(players_to_match)
-        #self.assertEqual(len(players), 2)
+        '''
+        self.x.source_name = 'pff'
+        players = self.x.get_source_playernames()
+        player = random.choice(players)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len(players), 0)
+        self.assertIsInstance(player, str)
+
+    def test_get_source_players(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        players = self.x.get_source_players()
+        player = random.choice(players)
+        self.assertIsInstance(players, list)
+        self.assertIsInstance(player, dict)
+        self.assertGreater(len(players), 50)
+        self.assertIn('player_id', player.keys())
+
 
 if __name__=='__main__':
     unittest.main()
