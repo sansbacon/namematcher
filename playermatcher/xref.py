@@ -86,27 +86,23 @@ class Site():
         if kwargs.get('player_query'):
             self.player_query = kwargs['player_query']
         else:
-            self.player_query = "SELECT {} FROM base.player_xref"
+            self.player_query = ("SELECT {} FROM base.player_xref "
+                                "WHERE SOURCE = '{}'")
 
-        if kwargs.get('site_playernames'):
-            self.site_playernames = kwargs['site_playernames']
+        if kwargs.get('source_playernames'):
+            self.source_playernames = kwargs['source_playernames']
         else:
-            self.site_playernames = {}
+            self.source_playernames = {}
 
-        if kwargs.get('site_players'):
-            self.site_players = kwargs['site_players']
+        if kwargs.get('source_players'):
+            self.source_players = kwargs['source_players']
         else:
-            self.site_players = {}
+            self.source_players = {}
 
-        if kwargs.get('site_playersd'):
-            self.site_playersd = kwargs['site_playersd']
+        if kwargs.get('source_playersd'):
+            self.source_playersd = kwargs['source_playersd']
         else:
-            self.site_playersd = {}
-
-        if kwargs.get('site_name'):
-            self.site_name = kwargs['site_name']
-        else:
-            self.site_name = ''
+            self.source_playersd = {}
 
     def get_based(self,
                   first='base',
@@ -119,7 +115,7 @@ class Site():
 
         '''
         fields = f'player_id as m, {name_key} as s'
-        q = self.player_query.format(fields)
+        q = self.player_query.format(fields, self.source_name)
         players = self.db.select_dict(q)
         if first == 'base':
             self.based = {p['m']: p['s'] for p in players}
@@ -201,7 +197,7 @@ class Site():
             self.mfl_playernames = self.db.select_list(q)
         return self.mfl_playernames
 
-    def get_site_players(self):
+    def get_source_players(self):
         '''
         Interface
 
@@ -209,11 +205,11 @@ class Site():
             list: of dict
 
         '''
-        if not self.site_players:
-            self.site_players = self.db.select_dict(self.player_query.format('*', self.source_name))
-        return self.site_players
+        if not self.source_players:
+            self.source_players = self.db.select_dict(self.player_query.format('*', self.source_name))
+        return self.source_players
 
-    def get_site_playernames(self, name_key='source_player_name'):
+    def get_source_playernames(self, name_key='source_player_name'):
         '''
         List of site playernames.
 
@@ -224,12 +220,12 @@ class Site():
             list
 
         '''
-        if not self.site_playernames:
+        if not self.source_playernames:
             q = self.player_query.format(name_key, self.source_name)
-            self.site_playernames = self.db.select_list(q)
-        return self.site_playernames
+            self.source_playernames = self.db.select_list(q)
+        return self.source_playernames
 
-    def get_site_playersd(self,
+    def get_source_playersd(self,
                           dict_key='name',
                           name_key='source_player_name',
                           pos_key='source_player_position'):
@@ -256,8 +252,8 @@ class Site():
                 playersd[k].append(p)
         else:
             raise ValueError('invalid key name: %s', dict_key)
-        self.site_playersd = playersd
-        return self.site_playersd
+        self.source_playersd = playersd
+        return self.source_playersd
 
     def match_mfl(self, mfl_players, id_key, name_key, interactive=False):
         '''
@@ -275,7 +271,7 @@ class Site():
         '''
         mfld = self.get_mfld(first='mfl')
         sited = self.get_playersd('name')
-        site_playernames = list(sited.keys())
+        source_playernames = list(sited.keys())
 
         for idx, p in enumerate(mfl_players):
             # first option is to see if already in database
@@ -283,7 +279,7 @@ class Site():
             if mfld.get(p[id_key]):
                 mfl_players[idx][id_key] = mfld[p[id_key]]
                 continue
-            match_name = player_match(first_last(p[name_key]), site_playernames, thresh=90,
+            match_name = player_match(first_last(p[name_key]), source_playernames, thresh=90,
                                       interactive=interactive)
             match = sited.get(match_name)
             if match and len(match) == 1:

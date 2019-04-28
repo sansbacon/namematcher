@@ -10,8 +10,12 @@ import sys
 import unittest
 
 from playermatcher.xref import Site
-from nflmisc.utility import getdb
+from nflmisc.nflpg import getdb
 from sportscraper.utility import rand_dictitem
+
+
+logger = logging.getLogger()
+logger.level = logging.INFO
 
 
 class Site_test(unittest.TestCase):
@@ -27,6 +31,26 @@ class Site_test(unittest.TestCase):
         '''
         self.db = getdb('nfl')
         self.x = Site(self.db)
+        stream_handler = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stream_handler)
+
+    def test_get_based(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        players = self.x.get_based()
+        player = rand_dictitem(players)
+        logging.info(player)
+        self.assertIsInstance(players, dict)
+        self.assertGreater(len(list(players.keys())), 50)
+        logging.getLogger().info(player)
+
+        self.x.source_name = 'xxx'
+        players = self.x.get_based()
+        self.assertIsNone(players)
 
     def test_get_base_players(self):
         '''
@@ -36,6 +60,7 @@ class Site_test(unittest.TestCase):
         '''
         players = self.x.get_base_players()
         player = random.choice(players)
+        self.assertIsInstance(players, list)
         self.assertGreater(len(players), 50)
         self.assertIn('player_id', player.keys())
 
@@ -49,20 +74,6 @@ class Site_test(unittest.TestCase):
         player = random.choice(players)
         self.assertGreater(len(players), 50)
         self.assertIn('mfl_player_id', player.keys())
-
-    def test_get_based(self):
-        '''
-
-        Returns:
-
-        '''
-        self.x.player_query = "SELECT {} FROM base.player_xref WHERE source='pff'"
-        based = self.x.get_based()
-        self.assertIsInstance(based, dict)
-        self.assertGreater(len(list(based.keys())), 50)
-        item = rand_dictitem(based)
-        self.assertIsInstance(item[0], int)
-        self.assertIsInstance(item[1], str)
 
     def test_get_mfld(self):
         '''
@@ -117,5 +128,4 @@ class Site_test(unittest.TestCase):
         #self.assertEqual(len(players), 2)
 
 if __name__=='__main__':
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     unittest.main()
