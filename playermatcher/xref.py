@@ -75,6 +75,9 @@ class Site:
     source_players = attr.ib(type=typing.List[dict],
                            factory=list,
                            validator=attr.validators.instance_of(list))
+    source_playernamepos = attr.ib(type=typing.List[tuple],
+                               factory=list,
+                               validator=attr.validators.instance_of(list))
     source_playernames = attr.ib(type=typing.List[str],
                                factory=list,
                                validator=attr.validators.instance_of(list))
@@ -89,23 +92,27 @@ class Site:
                   first='name',
                   name_key='full_name'):
         '''
-        Dict of player_id: source_player_id or vice versa
+        Dict of player_id: name or vice versa from base players table
+        Uses default dict when key is name because of duplicates
 
         Returns:
-	        dict
+	        dict(if first=id) or defaultdict(if first=name)
 
         '''
         fields = f'player_id as id, {name_key} as name'
         q = self.player_query.format(fields)
         players = self.db.select_dict(q)
         if first == 'name':
-            self.based = {p['name']: p['id'] for p in players}
+            self.based = defaultdict(list)
+            for p in players:
+                self.based[p['name']].append(p['id'])
         else:
             self.based = {p['id']: p['name'] for p in players}
         return self.based
 
     def get_base_players(self):
         '''
+        List of player dicts from base players table
 
         Returns:
             list: of dict
@@ -118,6 +125,7 @@ class Site:
 
     def get_base_playernames(self):
         '''
+        List of player names from base players table
 
         Returns:
             list: of str
@@ -132,10 +140,11 @@ class Site:
                   first='name',
                   name_key='full_name'):
         '''
-        Dict of player_id: source_player_id or vice versa
+        Dict of mfl_player_id: name or vice versa from base player table
+        Uses default dict when key is name because of duplicates
 
         Returns:
-            dict
+	        dict(if first=id) or defaultdict(if first=name)
 
         '''
         q = """SELECT mfl_player_id as id, full_name as name
@@ -143,14 +152,16 @@ class Site:
                WHERE mfl_player_id IS NOT NULL"""
         players = self.db.select_dict(q)
         if first == 'name':
-            self.mfld = {p['name']: p['id'] for p in players}
+            self.mfld = defaultdict(list)
+            for p in players:
+                self.mfld[p['name']].append(p['id'])
         else:
             self.mfld = {p['id']: p['name'] for p in players}
         return self.mfld
 
     def get_mfl_playernames(self):
         '''
-        Interface
+        List of names from base players table that have mfl id
 
         Returns:
             list: of dict
@@ -164,7 +175,7 @@ class Site:
 
     def get_mfl_players(self):
         '''
-        Interface
+        List of player dict with mfl id from base player table
 
         Returns:
             list: of dict
@@ -178,13 +189,14 @@ class Site:
 
     def get_sourced(self, first='name'):
         '''
-        Dict of name: id or vice versa
+        Dict of source name: id or vice versa from xref table
 
         Args:
             first(str): 'name' or 'id'
+            Uses default dict when key is name because of duplicates
 
         Returns:
-            dict
+	        dict(if first=id) or defaultdict(if first=name)
 
         '''
         q = """SELECT source_player_id as id, 
@@ -193,45 +205,14 @@ class Site:
                WHERE source ='{}'"""
         players = self.db.select_dict(q.format(self.source_name))
         if first == 'name':
-            self.sourced = {p['name']: p['id'] for p in players}
+            self.sourced = defaultdict(list)
+            for p in players:
+                self.sourced[p['name']].append(p['id'])
         elif first == 'id':
             self.sourced = {p['id']: p['name'] for p in players}
         else:
             raise ValueError('invalid value for first %s' % first)
         return self.sourced
-
-
-    """
-    def get_sourced(self,
-                    dict_key='name',
-                    name_key='source_player_name',
-                    pos_key='source_player_position'):
-        '''
-        Defaultdict of site players. Key is dict_key, value is list.
-
-        Args:
-            dict_key(str): 'name' or 'namepos'
-            name_key(str): default 'source_player_name'
-            pos_key(str): default 'source_player_position'
-
-        Returns:
-            dict
-
-        '''
-        playersd = defaultdict(list)
-        q = self.player_query.format('*', self.source_name)
-        if dict_key == 'name':
-            for p in self.db.select_dict(q):
-                playersd[p[name_key]].append(p)
-        elif dict_key == 'namepos':
-            for p in self.db.select_dict(q):
-                k = (p[name_key], p[pos_key])
-                playersd[k].append(p)
-        else:
-            raise ValueError('invalid key name: %s', dict_key)
-        self.source_playersd = playersd
-        return self.source_playersd
-    """
 
     def get_source_players(self):
         '''
@@ -244,6 +225,27 @@ class Site:
         if not self.source_players:
             self.source_players = self.db.select_dict(self.xref_query.format('*', self.source_name))
         return self.source_players
+
+    def get_source_playernamepos(self,
+                                 name_key='source_player_name',
+                                 pos_key='source_player_position'):
+        '''
+        List of tuples of site playername and position.
+
+        Args:
+            name_key(str): default 'source_player_name'
+            pos_key(str): default 'source_player_position'
+
+        Returns:
+            list: of tuples
+
+        '''
+        if not self.source_playernamepos:
+            fields = f'{name_key} as name, {pos_key} as pos'
+            q = self.xref_query.format(fields, self.source_name)
+            self.source_playernamepos = [(p['name'], p['pos']) for
+                                       p in self.db.select_dict(q)]
+        return self.source_playernamepos
 
     def get_source_playernames(self, name_key='source_player_name'):
         '''
@@ -261,6 +263,172 @@ class Site:
             self.source_playernames = self.db.select_list(q)
         return self.source_playernames
 
+    def make_source_based(self,
+                          source_keys,
+                          dict_key='name',
+                          name_key='full_name',
+                          pos_key='primary_pos'):
+        '''
+        Creates defaultdict matching site players/playerpos
+         to values in the base player table
+
+        Args:
+            source_keys(list): keys to use to match player name/namepos
+            dict_key(str): 'name' or 'namepos'
+            name_key(str): default 'full_name'
+            pos_key(str): default 'primary_position'
+
+        Returns:
+            dict
+
+        Examples:
+            source_based = xr.get_source_based(source_keys=source_playernames)
+            {'Joe Thomas': [{Joe Thomas 1 dict}, {Joe Thomas 2 dict}]
+
+            source_based = xr.get_source_based(source_keys=source_playernames,
+                                               dict_key='namepos')
+            {('Michael Thomas', 'WR'): [{Michael Thomas WR 1 dict},
+                                   {Michael Thomas WR 2 dict}]
+
+        '''
+        source_based = {}
+        base_players = self.get_base_players()
+        if dict_key == 'name':
+            # match source players and base players
+            for key in source_keys:
+                matches = [p for p in base_players
+                           if p[name_key] == key]
+                if matches:
+                    source_based[key] = matches
+        elif dict_key == 'namepos':
+            for key in source_keys:
+                matches = [p for p in base_players
+                           if key == (p[name_key], p[pos_key])]
+                if matches:
+                    source_based[key] = matches
+        else:
+            raise ValueError('invalid key name: %s', dict_key)
+        return source_based
+
+    def make_source_mfld(self,
+                          source_keys,
+                          dict_key='name',
+                          name_key='full_name',
+                          pos_key='primary_pos'):
+        '''
+        Creates defaultdict matching mfl players/playerpos
+         to values in the base player table
+
+        Args:
+            source_keys(list): keys to use to match player name/namepos
+            dict_key(str): 'name' or 'namepos'
+            name_key(str): default 'full_name'
+            pos_key(str): default 'primary_position'
+
+        Returns:
+            dict
+
+        Examples:
+            source_based = xr.get_source_based(source_keys=source_playernames)
+            {'Joe Thomas': [{Joe Thomas 1 dict}, {Joe Thomas 2 dict}]
+
+            source_based = xr.get_source_based(source_keys=source_playernames,
+                                               dict_key='namepos')
+            {('Michael Thomas', 'WR'): [{Michael Thomas WR 1 dict},
+                                   {Michael Thomas WR 2 dict}]
+
+        '''
+        source_based = {}
+        mfl_players = self.get_mfl_players()
+        if dict_key == 'name':
+            # match source players and base players
+            for key in source_keys:
+                matches = [p for p in mfl_players
+                           if p[name_key] == key]
+                if matches:
+                    source_based[key] = matches
+        elif dict_key == 'namepos':
+            for key in source_keys:
+                matches = [p for p in mfl_players
+                           if key == (p[name_key], p[pos_key])]
+                if matches:
+                    source_based[key] = matches
+        else:
+            raise ValueError('invalid key name: %s', dict_key)
+        return source_based
+
+    def match_base(self,
+                   players_to_match,
+                   name_key='source_player_name'):
+        """
+        Adds player_id to list of players
+
+        Args:
+            players_to_match(list):
+            name_key(str): default 'source_player_name'
+
+        Returns:
+            list of dict, dict of list, list of dict
+
+        """
+        duplicates = {}
+        unmatched = []
+
+        base_players = self.get_base_players()
+        for idx, p in enumerate(players_to_match):
+            # first option is to see if already in database
+            # if that fails, use player_match routine
+            matches = [bp for bp in base_players if
+                       p[name_key] == bp['full_name']]
+            if matches and len(matches) == 1:
+                logging.info('direct match %s' % p[name_key])
+                match = matches[0]
+                players_to_match[idx]['player_id'] = match['player_id']
+            elif matches and len(matches) > 1:
+                logging.info('duplicate match %s' % p[name_key])
+                duplicates[p[name_key]] = matches
+            else:
+                logging.info('no match %s' % p[name_key])
+                unmatched.append(p)
+        return players_to_match, duplicates, unmatched
+
+    def match_mfl(self,
+                   players_to_match,
+                   name_key='source_player_name'):
+        """
+        Adds mfl_player_id to list of players
+
+        Args:
+            players_to_match(list):
+            name_key(str): default 'source_player_name'
+
+        Returns:
+            list of dict, dict of list, list of dict
+
+        """
+        duplicates = {}
+        unmatched = []
+
+        mfl_players = self.get_mfl_players()
+        for idx, p in enumerate(players_to_match):
+            # first option is to see if already in database
+            # if that fails, use player_match routine
+            matches = [bp for bp in mfl_players if
+                       p[name_key] == bp['full_name']]
+            if matches and len(matches) == 1:
+                logging.info('direct match %s' % p[name_key])
+                match = matches[0]
+                players_to_match[idx]['mfl_player_id'] = \
+                    match['mfl_player_id']
+            elif matches and len(matches) > 1:
+                logging.info('duplicate match %s' % p[name_key])
+                duplicates[p[name_key]] = matches
+            else:
+                logging.info('no match %s' % p[name_key])
+                unmatched.append(p)
+        return players_to_match, duplicates, unmatched
+
+    """
     def match_mfl(self, mfl_players, id_key, name_key, interactive=False):
         '''
         Matches mfl players to site players
@@ -291,101 +459,8 @@ class Site:
             if match and len(match) == 1:
                 mfl_players[idx][id_key] = match[0][id_key]
         return mfl_players
+    """
 
-    def match_players(self,
-                      players_to_match,
-                      **kwargs):
-        '''
-        Adds player_id and mfl_player_id to group of players
-
-        Args:
-            players_to_match(list):
-            **kwargs
-
-        Returns:
-            list: of dict
-
-        '''
-        # parse kwargs / set defaults
-        if kwargs.get('id_key'):
-            id_key = kwargs['id_key']
-        else:
-            id_key = 'source_player_id'
-
-        if kwargs.get('name_key'):
-            name_key = kwargs['name_key']
-        else:
-            name_key = 'source_player_name'
-
-        if kwargs.get('interactive'):
-            interactive = kwargs['interactive']
-        else:
-            interactive = False
-
-        if kwargs.get('thresh'):
-            thresh = kwargs['thresh']
-        else:
-            thresh = 90
-
-        if kwargs.get('based'):
-            based = kwargs['based']
-        else:
-            based = self.get_based(first='base')
-
-        if kwargs.get('base_players'):
-            base_players = kwargs['base_players']
-        else:
-            base_players = self.get_base_players()
-
-        if kwargs.get('base_playernames'):
-            base_playernames = kwargs['base_playernames']
-        else:
-            base_playernames = [p['full_name'] for p in base_players]
-
-        if kwargs.get('mfld'):
-            mfld = kwargs['mfld']
-        else:
-            mfld = self.get_mfld(first='mfl')
-
-        if kwargs.get('mfl_players'):
-            mfl_players = kwargs['mfl_players']
-        else:
-            mfl_players = self.get_mfl_players()
-
-        if kwargs.get('mfl_playernames'):
-            mfl_playernames = kwargs['mfl_playernames']
-        else:
-            mfl_playernames = self.get_mfl_playernames()
-
-        for idx, p in enumerate(players_to_match):
-            # MATCH MFL
-            # first option is to see if already in database
-            # if that fails, use player_match routine
-            if mfld.get(p[id_key]):
-                players_to_match[idx]['mfl_player_id'] = mfld[p[id_key]]
-            else:
-                match_name = player_match(first_last(p[name_key]),
-                                          mfl_playernames,
-                                          thresh=thresh,
-                                          interactive=interactive)
-                matches = [p for p in mfl_players if p['full_name'] == match_name]
-                if matches and len(matches) == 1:
-                    players_to_match[idx]['mfl_player_id'] = matches[0]['mfl_player_id']
-
-            # MATCH BASE
-            # first option is to see if already in database
-            # if that fails, use player_match routine
-            if based.get(p[id_key]):
-                players_to_match[idx]['player_id'] = based[p[id_key]]
-            else:
-                match_name = player_match(first_last(p[name_key]),
-                                          base_playernames,
-                                          thresh=thresh,
-                                          interactive=interactive)
-                matches = [p for p in base_players if p['full_name'] == match_name]
-                if matches and len(matches) == 1:
-                    players_to_match[idx]['player_id'] = matches[0]['player_id']
-        return players_to_match
 
 
 if __name__ == '__main__':

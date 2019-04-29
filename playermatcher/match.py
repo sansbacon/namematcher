@@ -70,8 +70,8 @@ def match_fuzzy(to_match, match_from):
 def match_interactive(to_match,
                       match_from,
                       default=None,
-                      choices=1,
-                      timeout=5):
+                      choices=3,
+                      timeout=15):
     '''
     Matches player with fuzzy match, interactive confirmation
 

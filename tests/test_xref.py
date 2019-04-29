@@ -4,6 +4,7 @@
 
 """
 
+from collections import defaultdict
 import logging
 import random
 import sys
@@ -41,11 +42,10 @@ class Site_test(unittest.TestCase):
 
         '''
         players = self.x.get_based(first='name')
-        player = rand_dictitem(players)
-        self.assertIsInstance(players, dict)
-        self.assertGreater(len(list(players.keys())), 50)
-        self.assertIsInstance(player[0], str)
-        self.assertIsInstance(player[1], int)
+        rand_key = random.choice(list(players.keys()))
+        player = players[rand_key]
+        self.assertIsInstance(players, defaultdict)
+        self.assertIsInstance(player[0], int)
         players = self.x.get_based(first='id')
         player = rand_dictitem(players)
         self.assertIsInstance(player[0], int)
@@ -84,11 +84,10 @@ class Site_test(unittest.TestCase):
 
         '''
         players = self.x.get_mfld(first='name')
-        player = rand_dictitem(players)
-        self.assertIsInstance(players, dict)
-        self.assertGreater(len(list(players.keys())), 50)
-        self.assertIsInstance(player[0], str)
-        self.assertIsInstance(player[1], int)
+        rand_key = random.choice(list(players.keys()))
+        player = players[rand_key]
+        self.assertIsInstance(players, defaultdict)
+        self.assertIsInstance(player[0], int)
         players = self.x.get_mfld(first='id')
         player = rand_dictitem(players)
         self.assertIsInstance(player[0], int)
@@ -128,10 +127,11 @@ class Site_test(unittest.TestCase):
 
         '''
         self.x.source_name = 'pff'
-        players = self.x.get_sourced(first='name')
-        player = rand_dictitem(players)
-        self.assertIsInstance(player[0], str)
-        self.assertIsInstance(player[1], str)
+        players = self.x.get_mfld(first='name')
+        rand_key = random.choice(list(players.keys()))
+        player = players[rand_key]
+        self.assertIsInstance(players, defaultdict)
+        self.assertIsInstance(player[0], int)
 
         players = self.x.get_sourced(first='id')
         player = rand_dictitem(players)
@@ -141,6 +141,22 @@ class Site_test(unittest.TestCase):
         self.x.source_name = 'xxx'
         players = self.x.get_sourced(first='name')
         self.assertFalse(bool(players))
+
+    def test_get_source_playernamepos(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        players = self.x.get_source_playernamepos()
+        player = random.choice(players)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len(players), 0)
+        self.assertIsInstance(player, tuple)
+        self.assertIsInstance(player[0], str)
+        self.assertIsInstance(player[1], str)
+        logging.info(player)
 
     def test_get_source_playernames(self):
         '''
@@ -168,6 +184,88 @@ class Site_test(unittest.TestCase):
         self.assertIsInstance(player, dict)
         self.assertGreater(len(players), 50)
         self.assertIn('player_id', player.keys())
+
+
+    def test_make_source_based(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        source_keys = self.x.get_source_playernames()
+        source_based = self.x.make_source_based(source_keys)
+        self.assertIsInstance(source_based, dict)
+        self.assertIsInstance(list(source_based.values())[0], list)
+
+        self.x.source_name = 'pff'
+        source_keys = self.x.get_source_playernamepos()
+        source_based = self.x.make_source_based(source_keys,
+                                                dict_key='namepos')
+        self.assertIsInstance(source_based, dict)
+        try:
+            self.assertIsInstance(list(source_based.values())[0], list)
+        except:
+            self.assertIsFalse(bool(source_based))
+
+
+    def test_make_source_mfld(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        source_keys = self.x.get_source_playernames()
+        source_mfld = self.x.make_source_mfld(source_keys)
+        self.assertIsInstance(source_mfld, dict)
+        self.assertIsInstance(list(source_mfld.values())[0], list)
+
+        self.x.source_name = 'pff'
+        source_keys = self.x.get_source_playernamepos()
+        source_based = self.x.make_source_mfld(source_keys,
+                                                dict_key='namepos')
+        self.assertIsInstance(source_based, dict)
+        try:
+            self.assertIsInstance(list(source_mfld.values())[0], list)
+        except:
+            self.assertIsFalse(bool(source_based))
+
+
+    def test_match_base(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        source_players = self.x.get_source_players()
+        players, duplicates, unmatched = self.x.match_base(source_players)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len([p for p in players if p.get('player_id')]), 0)
+        player = random.choice(players)
+        self.assertIsInstance(player, dict)
+        logging.info(player)
+        logging.info(duplicates)
+        logging.info(unmatched)
+
+
+    def test_match_mfl(self):
+        '''
+
+        Returns:
+
+        '''
+        self.x.source_name = 'pff'
+        source_players = self.x.get_source_players()
+        players, duplicates, unmatched = self.x.match_mfl(source_players)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len([p for p in players if p.get('mfl_player_id')]), 0)
+        player = random.choice(players)
+        self.assertIsInstance(player, dict)
+        logging.info(player)
+        logging.info(duplicates)
+        logging.info(unmatched)
 
 
 if __name__=='__main__':
