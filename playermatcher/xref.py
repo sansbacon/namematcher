@@ -389,13 +389,13 @@ class Site:
             matches = [mf for mf in match_from if
                        p[name_key_to] == mf[name_key_from]]
             if matches and len(matches) == 1:
-                logging.info('direct match %s' % p[name_key_to])
+                logging.debug('direct match %s', p[name_key_to])
                 match = matches[0]
                 p[id_key_from] = match[id_key_from]
                 matched.append(p)
                 continue
             elif matches and len(matches) > 1:
-                logging.info('duplicate match %s' % p[name_key_to])
+                logging.debug('duplicate match %s', p[name_key_to])
                 duplicates[p[name_key_to]] = matches
                 continue
 
@@ -408,13 +408,13 @@ class Site:
                     matches = [mf for mf in match_from if
                                mf[name_key_from] == match_name]
                     if matches and len(matches) == 1:
-                        logging.info('fuzzy match %s %s' % (p[name_key_to], confidence))
+                        logging.debug('fuzzy match %s %s', (p[name_key_to], confidence))
                         match = matches[0]
                         p[id_key_from] = match[id_key_from]
                         matched.append(p)
                         continue
                     elif matches and len(matches) > 1:
-                        logging.info('duplicate match %s' % p[name_key_to])
+                        logging.debug('duplicate match %s', p[name_key_to])
                         duplicates[p[name_key_to]] = matches
                         continue
             else:
@@ -425,25 +425,24 @@ class Site:
                     matches = [mf for mf in match_from if
                                mf[name_key_from] == match_name]
                     if matches and len(matches) == 1:
-                        logging.info('fuzzy match %s %s' % (p[name_key_to], confidence))
+                        logging.debug('fuzzy match %s %s', (p[name_key_to], confidence))
                         match = matches[0]
                         p[id_key_from] = match[id_key_from]
                         matched.append(p)
                         continue
                     elif matches and len(matches) > 1:
-                        logging.info('duplicate match %s' % p[name_key_to])
+                        logging.debug('duplicate match %s', p[name_key_to])
                         duplicates[p[name_key_to]] = matches
                         continue
 
             # if unmatched, log and add to unmatched
-            logging.info('no match %s' % p[name_key_to])
+            logging.debug('no match %s', p[name_key_to])
             unmatched.append(p)
         return matched, duplicates, unmatched
 
     def match_base(self,
                    to_match,
                    name_key_to='source_player_name',
-                   id_key_to='source_player_id',
                    interactive=False,
                    thresh=90):
         """
@@ -452,7 +451,6 @@ class Site:
         Args:
             to_match(list):
             name_key_to(str): default 'source_player_name'
-            id_key_to(str): default 'source_player_id'
             interactive(bool): default False,
             thresh(int): default 90
 
@@ -461,7 +459,7 @@ class Site:
 
         """
         name_keys = (name_key_to, 'full_name')
-        id_keys = (id_key_to, 'player_id')
+        id_keys = (None, 'player_id')
         return self.match(to_match,
                           match_from=self.get_base_players(),
                           name_keys=name_keys,
