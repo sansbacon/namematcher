@@ -11,9 +11,7 @@ import typing
 
 import attr
 
-from .match import player_match
-from .name import first_last
-from nflmisc import nflpg
+from .match import match_fuzzy, match_interactive
 
 
 def add_xref(xref_dict, base, session):
@@ -46,8 +44,7 @@ class Site:
     Base class for matching players
 
     '''
-    db = attr.ib(type=nflpg.NFLPostgres,
-                 validator=attr.validators.instance_of(nflpg.NFLPostgres))
+    db = attr.ib()
     based = attr.ib(type=dict,
                     factory=dict,
                     validator=attr.validators.instance_of(dict))
@@ -133,7 +130,7 @@ class Site:
         '''
         if not self.base_playernames:
             q = 'SELECT full_name FROM base.player'
-            self.base_playernames = self.db.select_dict(q)
+            self.base_playernames = self.db.select_list(q)
         return self.base_playernames
 
     def get_mfld(self,
@@ -223,7 +220,8 @@ class Site:
 
         '''
         if not self.source_players:
-            self.source_players = self.db.select_dict(self.xref_query.format('*', self.source_name))
+            q = self.xref_query.format('*', self.source_name)
+            self.source_players = self.db.select_dict(q)
         return self.source_players
 
     def get_source_playernamepos(self,
@@ -357,110 +355,148 @@ class Site:
             raise ValueError('invalid key name: %s', dict_key)
         return source_based
 
+    def match(self,
+              to_match,
+              match_from,
+              id_keys=('source_player_id', 'player_id'),
+              name_keys=('source_player_name', 'full_name'),
+              interactive=False,
+              thresh=90):
+        '''
+        Generic match routine
+
+        Args:
+            to_match(list): of dict
+            match_from(list): of dict
+            id_keys(tuple): default ('source_player_id', 'player_id')
+            name_keys(tuple): default ('source_player_name', 'full_name')
+            interactive(bool): default False,
+            thresh(int): default 90
+
+        Returns:
+            tuple: list of dict, dict of list, list of dict
+
+        '''
+        matched = []
+        duplicates = {}
+        unmatched = []
+        id_key_to, id_key_from = id_keys
+        name_key_to, name_key_from = name_keys
+        playernames_from = [mf[name_key_from] for mf in match_from]
+
+        for p in to_match:
+            # first option is to see if direct match
+            matches = [mf for mf in match_from if
+                       p[name_key_to] == mf[name_key_from]]
+            if matches and len(matches) == 1:
+                logging.info('direct match %s' % p[name_key_to])
+                match = matches[0]
+                p[id_key_from] = match[id_key_from]
+                matched.append(p)
+                continue
+            elif matches and len(matches) > 1:
+                logging.info('duplicate match %s' % p[name_key_to])
+                duplicates[p[name_key_to]] = matches
+                continue
+
+            # try interactive match
+            if interactive:
+                match_name, confidence = match_interactive(
+                            to_match=p[name_key_to],
+                            match_from=playernames_from)
+                if match_name:
+                    matches = [mf for mf in match_from if
+                               mf[name_key_from] == match_name]
+                    if matches and len(matches) == 1:
+                        logging.info('fuzzy match %s %s' % (p[name_key_to], confidence))
+                        match = matches[0]
+                        p[id_key_from] = match[id_key_from]
+                        matched.append(p)
+                        continue
+                    elif matches and len(matches) > 1:
+                        logging.info('duplicate match %s' % p[name_key_to])
+                        duplicates[p[name_key_to]] = matches
+                        continue
+            else:
+                match_name, confidence = match_fuzzy(
+                            to_match=p[name_key_to],
+                            match_from=playernames_from)
+                if match_name and confidence >= thresh:
+                    matches = [mf for mf in match_from if
+                               mf[name_key_from] == match_name]
+                    if matches and len(matches) == 1:
+                        logging.info('fuzzy match %s %s' % (p[name_key_to], confidence))
+                        match = matches[0]
+                        p[id_key_from] = match[id_key_from]
+                        matched.append(p)
+                        continue
+                    elif matches and len(matches) > 1:
+                        logging.info('duplicate match %s' % p[name_key_to])
+                        duplicates[p[name_key_to]] = matches
+                        continue
+
+            # if unmatched, log and add to unmatched
+            logging.info('no match %s' % p[name_key_to])
+            unmatched.append(p)
+        return matched, duplicates, unmatched
+
     def match_base(self,
-                   players_to_match,
-                   name_key='source_player_name'):
+                   to_match,
+                   name_key_to='source_player_name',
+                   id_key_to='source_player_id',
+                   interactive=False,
+                   thresh=90):
         """
         Adds player_id to list of players
 
         Args:
-            players_to_match(list):
-            name_key(str): default 'source_player_name'
+            to_match(list):
+            name_key_to(str): default 'source_player_name'
+            id_key_to(str): default 'source_player_id'
+            interactive(bool): default False,
+            thresh(int): default 90
 
         Returns:
             list of dict, dict of list, list of dict
 
         """
-        duplicates = {}
-        unmatched = []
-
-        base_players = self.get_base_players()
-        for idx, p in enumerate(players_to_match):
-            # first option is to see if already in database
-            # if that fails, use player_match routine
-            matches = [bp for bp in base_players if
-                       p[name_key] == bp['full_name']]
-            if matches and len(matches) == 1:
-                logging.info('direct match %s' % p[name_key])
-                match = matches[0]
-                players_to_match[idx]['player_id'] = match['player_id']
-            elif matches and len(matches) > 1:
-                logging.info('duplicate match %s' % p[name_key])
-                duplicates[p[name_key]] = matches
-            else:
-                logging.info('no match %s' % p[name_key])
-                unmatched.append(p)
-        return players_to_match, duplicates, unmatched
+        name_keys = (name_key_to, 'full_name')
+        id_keys = (id_key_to, 'player_id')
+        return self.match(to_match,
+                          match_from=self.get_base_players(),
+                          name_keys=name_keys,
+                          id_keys=id_keys,
+                          interactive=interactive,
+                          thresh=thresh)
 
     def match_mfl(self,
-                   players_to_match,
-                   name_key='source_player_name'):
+                   to_match,
+                   name_key_to='source_player_name',
+                   id_key_to='source_player_id',
+                   interactive=False,
+                   thresh=90):
         """
         Adds mfl_player_id to list of players
 
         Args:
-            players_to_match(list):
-            name_key(str): default 'source_player_name'
+            to_match(list):
+            name_key_to(str): default 'source_player_name'
+            id_key_to(str): default 'source_player_id'
+            interactive(bool): default False,
+            thresh(int): default 90
 
         Returns:
             list of dict, dict of list, list of dict
 
         """
-        duplicates = {}
-        unmatched = []
-
-        mfl_players = self.get_mfl_players()
-        for idx, p in enumerate(players_to_match):
-            # first option is to see if already in database
-            # if that fails, use player_match routine
-            matches = [bp for bp in mfl_players if
-                       p[name_key] == bp['full_name']]
-            if matches and len(matches) == 1:
-                logging.info('direct match %s' % p[name_key])
-                match = matches[0]
-                players_to_match[idx]['mfl_player_id'] = \
-                    match['mfl_player_id']
-            elif matches and len(matches) > 1:
-                logging.info('duplicate match %s' % p[name_key])
-                duplicates[p[name_key]] = matches
-            else:
-                logging.info('no match %s' % p[name_key])
-                unmatched.append(p)
-        return players_to_match, duplicates, unmatched
-
-    """
-    def match_mfl(self, mfl_players, id_key, name_key, interactive=False):
-        '''
-        Matches mfl players to site players
-
-        Args:
-            mfl_players(list):
-            id_key(str):
-            name_key(str):
-            interactive(bool):
-
-        Returns:
-            list: of player
-
-        '''
-        mfld = self.get_mfld(first='mfl')
-        sited = self.get_playersd('name')
-        source_playernames = list(sited.keys())
-
-        for idx, p in enumerate(mfl_players):
-            # first option is to see if already in database
-            # if that fails, use player_match routine
-            if mfld.get(p[id_key]):
-                mfl_players[idx][id_key] = mfld[p[id_key]]
-                continue
-            match_name = player_match(first_last(p[name_key]), source_playernames, thresh=90,
-                                      interactive=interactive)
-            match = sited.get(match_name)
-            if match and len(match) == 1:
-                mfl_players[idx][id_key] = match[0][id_key]
-        return mfl_players
-    """
-
+        name_keys = (name_key_to, 'full_name')
+        id_keys = (id_key_to, 'mfl_player_id')
+        return self.match(to_match,
+                          match_from=self.get_base_players(),
+                          name_keys=name_keys,
+                          id_keys=id_keys,
+                          interactive=interactive,
+                          thresh=thresh)
 
 
 if __name__ == '__main__':

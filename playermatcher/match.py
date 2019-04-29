@@ -83,7 +83,7 @@ def match_interactive(to_match,
         timeout(int): seconds to wait before providing default value
 
     Returns:
-        str
+        (str, int)
 
     '''
     for match in process.extract(to_match, match_from, limit=choices):
