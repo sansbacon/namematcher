@@ -20,23 +20,43 @@ def add_xref(xref_dict, base, session):
 
     Args:
         xref_dict(dict):
-        base(sqlalchemy.base):
-        session(sqlalchemy.session):
+        base(sqlalchemy base):
+        session(sqlalchemy session):
 
     Returns:
 
     '''
+
     PlayerXref = base.classes.player_xref
-    session.add(
-      PlayerXref(
-        player_id=xref_dict['player_id'],
-        source=xref_dict['source'],
-        source_player_id=xref_dict.get('source_player_id'),
-        source_player_code=xref_dict.get('source_player_code'),
-        source_player_name=xref_dict['source_player_name'],
-        source_player_position=xref_dict['source_player_position']
-      )
+
+    record = (
+        session.query(PlayerXref) \
+            .filter(PlayerXref.source_player_id == xref_dict["source_player_id"]) \
+            .filter(PlayerXref.source == xref_dict["source"]) \
+            .first()
     )
+
+    record2 = (
+        session.query(PlayerXref) \
+            .filter(PlayerXref.source_player_id == xref_dict["source_player_id"]) \
+            .filter(PlayerXref.player_id == xref_dict["player_id"]) \
+            .first()
+    )
+
+    if not (record and record2):
+        session.add(
+          PlayerXref(
+            player_id=xref_dict['player_id'],
+            source=xref_dict['source'],
+            source_player_id=xref_dict.get('source_player_id'),
+            source_player_code=xref_dict.get('source_player_code'),
+            source_player_name=xref_dict['source_player_name'],
+            source_player_position=xref_dict['source_player_position']
+          )
+        )
+
+row2dict = lambda r: {c.name: str(getattr(r, c.name)) for c in r.__table__.columns}
+
 
 @attr.s(kw_only=True)
 class Site:
@@ -44,7 +64,9 @@ class Site:
     Base class for matching players
 
     '''
-    db = attr.ib()
+    base = attr.ib()
+    session = attr.ib()
+    eng = attr.ib()
     based = attr.ib(type=dict,
                     factory=dict,
                     validator=attr.validators.instance_of(dict))
@@ -52,6 +74,9 @@ class Site:
                            factory=list,
                            validator=attr.validators.instance_of(list))
     base_playernames = attr.ib(type=typing.List[str],
+                               factory=list,
+                               validator=attr.validators.instance_of(list))
+    base_playernamepos = attr.ib(type=typing.List[tuple],
                                factory=list,
                                validator=attr.validators.instance_of(list))
     mfld = attr.ib(type=dict,
@@ -84,10 +109,10 @@ class Site:
 
     def __attrs_post_init__(self):
         logging.getLogger(__name__).addHandler(logging.NullHandler())
+        self.Player = self.base.classes.player
+        self.PlayerXref = self.base.classes.player_xref
 
-    def get_based(self,
-                  first='name',
-                  name_key='full_name'):
+    def get_based(self, first='name'):
         '''
         Dict of player_id: name or vice versa from base players table
         Uses default dict when key is name because of duplicates
@@ -96,29 +121,32 @@ class Site:
 	        dict(if first=id) or defaultdict(if first=name)
 
         '''
-        fields = f'player_id as id, {name_key} as name'
-        q = self.player_query.format(fields)
-        players = self.db.select_dict(q)
         if first == 'name':
             self.based = defaultdict(list)
-            for p in players:
-                self.based[p['name']].append(p['id'])
+            for p in self.session.query(self.Player):
+                self.based[p.full_name].append(p.player_id)
         else:
-            self.based = {p['id']: p['name'] for p in players}
+            self.based = {p.player_id: p.full_name for p in
+                          self.session.query(self.Player)}
         return self.based
 
-    def get_base_players(self):
+    def get_base_playernamepos(self):
         '''
-        List of player dicts from base players table
+        List of tuples of base playername and position.
+
+        Args:
+            name_key(str): default 'source_player_name'
+            pos_key(str): default 'source_player_position'
 
         Returns:
-            list: of dict
+            list: of tuples
 
         '''
-        if not self.base_players:
-            q = 'SELECT * FROM base.player'
-            self.base_players = self.db.select_dict(q)
-        return self.base_players
+        if not self.base_playernamepos:
+            self.base_playernamepos = \
+                [(p.full_name, p.primary_pos)
+                 for p in self.session.query(self.Player)]
+        return self.base_playernamepos
 
     def get_base_playernames(self):
         '''
@@ -129,13 +157,24 @@ class Site:
 
         '''
         if not self.base_playernames:
-            q = 'SELECT full_name FROM base.player'
-            self.base_playernames = self.db.select_list(q)
+            self.base_playernames = [p.full_name for p in
+                                     self.session.query(self.Player)]
         return self.base_playernames
 
-    def get_mfld(self,
-                  first='name',
-                  name_key='full_name'):
+    def get_base_players(self):
+        '''
+        List of player dicts from base players table
+
+        Returns:
+            list: of dict
+
+        '''
+        if not self.base_players:
+            self.base_playernames = [row2dict(p) for p in
+                                     self.session.query(self.Player)]
+        return self.base_playernames
+
+    def get_mfld(self, first='name'):
         '''
         Dict of mfl_player_id: name or vice versa from base player table
         Uses default dict when key is name because of duplicates
@@ -144,16 +183,14 @@ class Site:
 	        dict(if first=id) or defaultdict(if first=name)
 
         '''
-        q = """SELECT mfl_player_id as id, full_name as name
-               FROM base.player 
-               WHERE mfl_player_id IS NOT NULL"""
-        players = self.db.select_dict(q)
         if first == 'name':
             self.mfld = defaultdict(list)
-            for p in players:
-                self.mfld[p['name']].append(p['id'])
+            for p in self.session.query(self.Player) \
+                    .filter(self.Player.mfl_player_id > 0):
+                self.mfld[p.full_name].append(p.mfl_player_id)
         else:
-            self.mfld = {p['id']: p['name'] for p in players}
+            self.mfld = {p.mfl_player_id: p.full_name for p in
+                          self.session.query(self.Player)}
         return self.mfld
 
     def get_mfl_playernames(self):
@@ -165,9 +202,9 @@ class Site:
 
         '''
         if not self.mfl_playernames:
-            q = """SELECT full_name FROM base.player 
-                   WHERE mfl_player_id IS NOT NULL"""
-            self.mfl_playernames = self.db.select_list(q)
+            self.mfl_playernames = \
+                [p.full_name for p in self.session.query(self.Player) \
+                    .filter(self.Player.mfl_player_id > 0)]
         return self.mfl_playernames
 
     def get_mfl_players(self):
@@ -179,9 +216,9 @@ class Site:
 
         '''
         if not self.mfl_players:
-            q = """SELECT * FROM base.player 
-                   WHERE mfl_player_id IS NOT NULL"""
-            self.mfl_players = self.db.select_dict(q)
+            self.mfl_players = [row2dict(p) for p in
+                                self.session.query(self.Player) \
+                                .filter(self.Player.mfl_player_id > 0)]
         return self.mfl_players
 
     def get_sourced(self, first='name'):
@@ -196,19 +233,15 @@ class Site:
 	        dict(if first=id) or defaultdict(if first=name)
 
         '''
-        q = """SELECT source_player_id as id, 
-               source_player_name as name
-               FROM base.player_xref 
-               WHERE source ='{}'"""
-        players = self.db.select_dict(q.format(self.source_name))
         if first == 'name':
             self.sourced = defaultdict(list)
-            for p in players:
-                self.sourced[p['name']].append(p['id'])
-        elif first == 'id':
-            self.sourced = {p['id']: p['name'] for p in players}
+            for p in self.session.query(self.PlayerXref) \
+                    .filter(self.PlayerXref.source == self.source_name):
+                self.sourced[p.full_name].append(p.source_player_id)
         else:
-            raise ValueError('invalid value for first %s' % first)
+            self.sourced = {p.source_player_id: p.source_player_name
+                            for p in self.session.query(self.PlayerXref) \
+                              .filter(self.PlayerXref.source == self.source_name)}
         return self.sourced
 
     def get_source_players(self):
@@ -220,8 +253,9 @@ class Site:
 
         '''
         if not self.source_players:
-            q = self.xref_query.format('*', self.source_name)
-            self.source_players = self.db.select_dict(q)
+            self.source_players = [row2dict(p) for p in
+                                   self.session.query(self.PlayerXref) \
+                                     .filter(self.PlayerXref.source == self.source_name)]
         return self.source_players
 
     def get_source_playernamepos(self,
@@ -239,10 +273,10 @@ class Site:
 
         '''
         if not self.source_playernamepos:
-            fields = f'{name_key} as name, {pos_key} as pos'
-            q = self.xref_query.format(fields, self.source_name)
-            self.source_playernamepos = [(p['name'], p['pos']) for
-                                       p in self.db.select_dict(q)]
+            self.source_playernamepos = \
+                [(p.source_player_name, p.source_player_position)
+                 for p in self.session.query(self.PlayerXref) \
+                    .filter(self.PlayerXref.source == self.source_name)]
         return self.source_playernamepos
 
     def get_source_playernames(self, name_key='source_player_name'):
@@ -257,8 +291,9 @@ class Site:
 
         '''
         if not self.source_playernames:
-            q = self.xref_query.format(name_key, self.source_name)
-            self.source_playernames = self.db.select_list(q)
+            self.source_playernames = [p.source_player_name for p in
+                                       self.session.query(self.PlayerXref) \
+                                      .filter(self.PlayerXref.source == self.source_name)]
         return self.source_playernames
 
     def make_source_based(self,
@@ -292,16 +327,17 @@ class Site:
         source_based = {}
         base_players = self.get_base_players()
         if dict_key == 'name':
-            # match source players and base players
             for key in source_keys:
+                logging.info('starting %s', key)
                 matches = [p for p in base_players
-                           if p[name_key] == key]
+                           if key == p[name_key]]
                 if matches:
                     source_based[key] = matches
         elif dict_key == 'namepos':
             for key in source_keys:
                 matches = [p for p in base_players
-                           if key == (p[name_key], p[pos_key])]
+                           if key == (p[name_key],
+                                      p[pos_key])]
                 if matches:
                     source_based[key] = matches
         else:
@@ -339,21 +375,23 @@ class Site:
         source_based = {}
         mfl_players = self.get_mfl_players()
         if dict_key == 'name':
-            # match source players and base players
             for key in source_keys:
+                logging.info('starting %s', key)
                 matches = [p for p in mfl_players
-                           if p[name_key] == key]
+                           if key == p[name_key]]
                 if matches:
                     source_based[key] = matches
         elif dict_key == 'namepos':
             for key in source_keys:
                 matches = [p for p in mfl_players
-                           if key == (p[name_key], p[pos_key])]
+                           if key == (p[name_key],
+                                      p[pos_key])]
                 if matches:
                     source_based[key] = matches
         else:
             raise ValueError('invalid key name: %s', dict_key)
         return source_based
+
 
     def match(self,
               to_match,

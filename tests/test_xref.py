@@ -10,13 +10,13 @@ import random
 import sys
 import unittest
 
+from playermatcher.db import setup
 from playermatcher.xref import Site
-from nflmisc.nflpg import getdb
 from sportscraper.utility import rand_dictitem
 
 
 logger = logging.getLogger()
-logger.level = logging.ERROR
+logger.level = logging.INFO
 
 
 class Site_test(unittest.TestCase):
@@ -30,8 +30,8 @@ class Site_test(unittest.TestCase):
         Returns:
 
         """
-        self.db = getdb('nfl')
-        self.x = Site(db=self.db)
+        base, eng, session = setup(database='sqlite')
+        self.x = Site(base=base, eng=eng, session=session)
         stream_handler = logging.StreamHandler(sys.stdout)
         logger.addHandler(stream_handler)
 
@@ -49,6 +49,21 @@ class Site_test(unittest.TestCase):
         players = self.x.get_based(first='id')
         player = rand_dictitem(players)
         self.assertIsInstance(player[0], int)
+        self.assertIsInstance(player[1], str)
+
+    def test_get_base_playernamepos(self):
+        """
+
+        Returns:
+
+        """
+        players = self.x.get_base_playernamepos()
+        player = random.choice(players)
+        logging.info(player)
+        self.assertIsInstance(players, list)
+        self.assertGreater(len(players), 0)
+        self.assertIsInstance(player, tuple)
+        self.assertIsInstance(player[0], str)
         self.assertIsInstance(player[1], str)
 
     def test_get_base_playernames(self):
@@ -90,6 +105,7 @@ class Site_test(unittest.TestCase):
         self.assertIsInstance(player[0], int)
         players = self.x.get_mfld(first='id')
         player = rand_dictitem(players)
+        logging.info(player)
         self.assertIsInstance(player[0], int)
         self.assertIsInstance(player[1], str)
 
@@ -130,11 +146,13 @@ class Site_test(unittest.TestCase):
         players = self.x.get_mfld(first='name')
         rand_key = random.choice(list(players.keys()))
         player = players[rand_key]
+        logging.info(player)
         self.assertIsInstance(players, defaultdict)
         self.assertIsInstance(player[0], int)
 
         players = self.x.get_sourced(first='id')
         player = rand_dictitem(players)
+        logging.info(player)
         self.assertIsInstance(player[0], str)
         self.assertIsInstance(player[1], str)
 
@@ -151,12 +169,12 @@ class Site_test(unittest.TestCase):
         self.x.source_name = 'pff'
         players = self.x.get_source_playernamepos()
         player = random.choice(players)
+        logging.info(player)
         self.assertIsInstance(players, list)
         self.assertGreater(len(players), 0)
         self.assertIsInstance(player, tuple)
         self.assertIsInstance(player[0], str)
         self.assertIsInstance(player[1], str)
-        logging.info(player)
 
     def test_get_source_playernames(self):
         """
@@ -167,6 +185,7 @@ class Site_test(unittest.TestCase):
         self.x.source_name = 'pff'
         players = self.x.get_source_playernames()
         player = random.choice(players)
+        logging.info(player)
         self.assertIsInstance(players, list)
         self.assertGreater(len(players), 0)
         self.assertIsInstance(player, str)
@@ -180,6 +199,7 @@ class Site_test(unittest.TestCase):
         self.x.source_name = 'pff'
         players = self.x.get_source_players()
         player = random.choice(players)
+        logging.info(player)
         self.assertIsInstance(players, list)
         self.assertIsInstance(player, dict)
         self.assertGreater(len(players), 50)
@@ -194,6 +214,7 @@ class Site_test(unittest.TestCase):
         """
         self.x.source_name = 'pff'
         source_keys = self.x.get_source_playernames()
+        self.assertIsInstance(source_keys, list)
         source_based = self.x.make_source_based(source_keys)
         self.assertIsInstance(source_based, dict)
         self.assertIsInstance(list(source_based.values())[0], list)
