@@ -1,2 +1,2 @@
-# playermatcher
-python libraries to match player names and ids
+# namematcher
+python libraries to match names and ids
