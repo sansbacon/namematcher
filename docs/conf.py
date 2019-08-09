@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'playermatcher'
+project = 'namematcher'
 copyright = '2019, Eric Truett'
 author = 'Eric Truett'
 
