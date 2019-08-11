@@ -5,33 +5,47 @@ import random
 import sys
 import unittest
 
-from playermatcher.match import *
-from sportscraper.utility import rand_dictitem
+from namematcher.match import *
+
+
+def rand_dictitem(dict_to_sample):
+    """
+    Gets random item from dict
+
+    Args:
+        d(dict):
+
+    Returns:
+        tuple: dict key and value
+
+    """
+    k = random.choice(list(dict_to_sample.keys()))
+    return (k, dict_to_sample[k])
 
 
 class Match_test(unittest.TestCase):
 
     def setUp(self):
-        self.players = ['Joe Thomas', 'Thomas Johnson', 'Thomas Joseph',
+        self.names = ['Joe Thomas', 'Thomas Johnson', 'Thomas Joseph',
                          'Joseph Thime', 'Timmy Johnson']
 
     @property
-    def player(self):
-        return random.choice(self.players)
+    def name(self):
+        return random.choice(self.names)
 
     def test_match_fuzzy(self):
         '''
         to_match, match_from
         returns match, conf
         '''
-        pl = self.player
-        match, conf = match_fuzzy(pl, self.players)
-        self.assertEqual(match, pl)
+        nm = self.name
+        match, conf = match_fuzzy(nm, self.names)
+        self.assertEqual(match, nm)
         self.assertGreater(conf, 0)
 
     def test_name_dict(self):
         '''
-        players, full_name_key, first_name_key, last_name_key
+        names, full_name_key, first_name_key, last_name_key
         returns defaultdict
         '''
         l = [{'full_name': 'Joe Thomas', 'pos': 'WR'},
@@ -41,7 +55,7 @@ class Match_test(unittest.TestCase):
 
     def test_namepos_dict(self):
         '''
-        players, pos_key, full_name_key, first_name_key, last_name_key
+        names, pos_key, full_name_key, first_name_key, last_name_key
         returns defaultdict
         '''
         l = [{'full_name': 'Joe Thomas', 'pos': 'WR'},
@@ -51,7 +65,7 @@ class Match_test(unittest.TestCase):
         key = rand_dictitem(d)[0]
         self.assertIsInstance(d[key], list)
 
-    def test_player_match(self):
+    def test_name_match(self):
 
         '''
         Tries direct match, then fuzzy match, then interactive
@@ -66,12 +80,12 @@ class Match_test(unittest.TestCase):
             str
 
         '''
-        pl = self.player
-        match = player_match(pl,
-                             self.players,
+        nm = self.name
+        match = name_match(nm,
+                             self.names,
                              thresh=85,
                              interactive=False)
-        self.assertEqual(match, pl)
+        self.assertEqual(match, nm)
 
 
 if __name__=='__main__':

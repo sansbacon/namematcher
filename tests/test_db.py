@@ -41,7 +41,7 @@ class Db_test(unittest.TestCase):
 
         """
         dbname = 'sqlite'
-        dbfile = '../playermatcher.sqlite'
+        dbfile = '../namematcher.sqlite'
         Base, eng, session = setup(database=dbname,
                                    database_file=dbfile)
         self.assertIsInstance(eng, sqlalchemy.engine.base.Engine)

@@ -13,11 +13,11 @@ from fuzzywuzzy import process
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
-def player_match(to_match,
-                 match_from,
-                 thresh=90,
-                 timeout=2,
-                 interactive=False):
+def match(to_match,
+          match_from,
+          thresh=90,
+          timeout=2,
+          interactive=False):
     '''
     Tries direct match, then fuzzy match, then interactive (optional)
 
@@ -53,15 +53,15 @@ def match_fuzzy(to_match, match_from):
     Matches player with fuzzy match
 
     Args:
-        to_match (str): player name to match
-        match_from (list): list of player names to match against
+        to_match (str): name to match
+        match_from (list): list of names to match against
 
     Returns:
         match(str): matched name from match_from list
         confidence(int): confidence of match
 
     Example:
-        name, conf = match_player(player, players)
+        name, conf = match_player(name, names)
 
     '''
     return process.extractOne(to_match, match_from)
@@ -73,11 +73,11 @@ def match_interactive(to_match,
                       choices=3,
                       timeout=15):
     '''
-    Matches player with fuzzy match, interactive confirmation
+    Matches name with fuzzy match, interactive confirmation
 
     Args:
-        to_match(str): player name to match
-        match_from(list): list of player names to match against
+        to_match(str): name to match
+        match_from(list): list of names to match against
         default: default value is None
         choices(int): number of matches to try
         timeout(int): seconds to wait before providing default value
@@ -96,15 +96,15 @@ def match_interactive(to_match,
     return (default, 1)
 
 
-def name_dict(players,
+def name_dict(names,
               full_name_key=None,
               first_name_key=None,
               last_name_key=None):
     '''
-    Creates a defaultdict of player name: player
+    Creates a defaultdict of name: namedict
 
     Args:
-        players(list): of dict
+        names(list): of dict
         full_name_key(str): default None
         first_name_key(str): default None
         last_name_key(str): default None
@@ -115,11 +115,11 @@ def name_dict(players,
     '''
     d = defaultdict(list)
     if full_name_key:
-        for p in players:
-            d[p[full_name_key]].append(p)
+        for nm in names:
+            d[nm[full_name_key]].append(nm)
     elif first_name_key and last_name_key:
-        for p in players:
-            k = '{} {}'.format(p[first_name_key], p[last_name_key])
+        for nm in names:
+            k = '{} {}'.format(nm[first_name_key], nm[last_name_key])
             d[k].append(p)
     else:
         msg = 'must specify full_name_key or first_name + last_name key'
@@ -127,16 +127,16 @@ def name_dict(players,
     return d
 
 
-def namepos_dict(players,
+def namepos_dict(names,
                  pos_key,
                  full_name_key=None,
                  first_name_key=None,
                  last_name_key=None):
     '''
-    Creates a defaultdict of player name_position: player
+    Creates a defaultdict of name_pos: name
 
     Args:
-        players(list): of dict
+        names(list): of dict
         pos_key(str): 'position', 'pos', etc.
         full_name_key(str): default None
         first_name_key(str): default None
@@ -148,13 +148,13 @@ def namepos_dict(players,
     '''
     d = defaultdict(list)
     if full_name_key:
-        for p in players:
-            k = '{}_{}'.format(p[full_name_key], p[pos_key])
+        for nm in names:
+            k = '{}_{}'.format(nm[full_name_key], nm[pos_key])
             d[k].append(p)
     elif first_name_key and last_name_key:
-        for p in players:
-            k = '{} {}_{}'.format(p[first_name_key],
-                                  p[last_name_key], p[pos_key])
+        for nm in names:
+            k = '{} {}_{}'.format(nm[first_name_key],
+                                  nm[last_name_key], nm[pos_key])
             d[k].append(p)
     else:
         msg = 'must specify full_name_key or first_name + last_name key'

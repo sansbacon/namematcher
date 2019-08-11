@@ -5,7 +5,6 @@ Common name functions
 '''
 
 import logging
-
 from nameparser import HumanName
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())

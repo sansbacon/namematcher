@@ -15,14 +15,14 @@ from sqlalchemy.orm import Session
 
 def setup(connstr = None,
           database='sqlite',
-          database_file='../playermatcher.sqlite',
+          database_file='../namematcher.sqlite',
           schema=None):
     '''
     Automaps classes
     
     Args:
         database(str): default 'sqlite'
-        database_file(str): default '../playermatcher.sqlite'
+        database_file(str): default '../namematcher.sqlite'
         schema(str): default None
         
     Returns:

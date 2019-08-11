@@ -1,2 +1,2 @@
 # namematcher
-python libraries to match names and ids
+python library to match names and ids with fuzzy matching and interactive selection
