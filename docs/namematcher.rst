@@ -1,29 +1,29 @@
-playermatcher package
+namematcher package
 =====================
 
 Submodules
 ----------
 
-playermatcher.match module
+namematcher.match module
 --------------------------
 
-.. automodule:: playermatcher.match
+.. automodule:: namematcher.match
     :members:
     :undoc-members:
     :show-inheritance:
 
-playermatcher.name module
+namematcher.name module
 -------------------------
 
-.. automodule:: playermatcher.name
+.. automodule:: namematcher.name
     :members:
     :undoc-members:
     :show-inheritance:
 
-playermatcher.xref module
+namematcher.xref module
 -------------------------
 
-.. automodule:: playermatcher.xref
+.. automodule:: namematcher.xref
     :members:
     :undoc-members:
     :show-inheritance:
@@ -32,7 +32,7 @@ playermatcher.xref module
 Module contents
 ---------------
 
-.. automodule:: playermatcher
+.. automodule:: namematcher
     :members:
     :undoc-members:
     :show-inheritance:

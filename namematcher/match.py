@@ -13,11 +13,11 @@ from fuzzywuzzy import process
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
-def match(to_match,
-          match_from,
-          thresh=90,
-          timeout=2,
-          interactive=False):
+def match_name(to_match,
+               match_from,
+               thresh=90,
+               timeout=2,
+               interactive=False):
     '''
     Tries direct match, then fuzzy match, then interactive (optional)
 
